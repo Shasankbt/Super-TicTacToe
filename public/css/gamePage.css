@@ -1,0 +1,73 @@
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background-color: #f8f9fa;
+}
+h1 {
+    margin-bottom: 20px;
+}
+.super-board {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    gap: min(20px, 2vw); /* Adjust gap dynamically */
+}
+
+.faded {
+    opacity: 0.5; /* Make it semi-transparent */
+    transition: opacity 0.5s ease-in-out;
+    pointer-events: none; /* Prevent further clicks */
+    position: relative;
+
+}
+
+.winner-symbol {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 5rem; /* Large X or O */
+    font-weight: bold;
+    color: black;
+    opacity: 1;
+    z-index: 3;
+}
+
+
+.board {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    outline: 2px solid black; /* Invisible initially */
+    box-sizing: border-box;
+    transition: outline 0.5s ease-in-out; /* Smooth transition */
+}
+
+.board.highlight {
+    outline: 5px solid rgb(184, 150, 228); /* Highlight effect */
+}
+
+.cell {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5em;
+    font-weight: bold;
+    background: white;
+    border: 1px solid #333;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+.cell:hover {
+    transform: scale(1.1);
+}
+
+.cell.highlight {
+    background-color: yellow;
+    transition: background-color 1s ease-in-out; /* Smooth fade-out */
+}
