@@ -26,6 +26,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/game/:id', (req, res) => {
+    console.log("rendering gamepage.ejs")
     res.render("gamePage.ejs");
 });
 
@@ -72,6 +73,49 @@ function getUserDataFromSocketId(socketId) {
 }
 
 
+io.on('connection', (socket) => {
+    const session = socket.handshake.session
+    if(!session.userId){
+        console.log("!!!Session not found");
+        const newuser = sessionManager.createNewUser();
+        session.userId = newuser.userId;
+        sessionManager.userMap.set(session.userId, newuser);
+    }
+    console.log('A user connected:', socket.id, " with id: ", session.userId);
+
+    
+    const oldSocketId = sessionManager.userMap.get(session.userId)?.socketId;
+    if (oldSocketId && io.sockets.sockets.has(oldSocketId)) {
+        console.log(`Old socket ${oldSocketId} found. Disconnecting it.`);
+        io.sockets.sockets.get(oldSocketId).disconnect();
+    }
+    
+    // initiate after the user sends the signal to the server
+    socket.on('new-connection-request-to-server', () => {
+        handleJoin(socket, session);
+    });
+
+    socket.on('pair', (to_id, connection_type) => {
+        handlePair(socket, to_id, connection_type, session);
+        console.log("usermap: ", sessionManager.userMap)
+        // if(connection_type === "initiate"){
+        //     console.log('recieved intiatte-pair request:', to_id);
+        // } else if (connection_type === "sucess"){
+        //     console.log('recieved pair-sucessful signal:', to_id);
+        // }
+    });
+
+    socket.on('disconnect', () => {
+        handleDisconnect(socket, session);
+    });
+
+    socket.on('move', (player, position) => {
+        handleMove(socket, player, position, session);
+    });
+
+    socket.on
+});
+
 
 function handleJoin(socket, session){
     const userData = sessionManager.userMap.get(session.userId);
@@ -99,6 +143,10 @@ function handleJoin(socket, session){
             console.log('Pairing', socket.id, 'with', opponentId);
             socket.emit('pair', opponents.get(socket.id), "sucess"); // Send pair request to specific player
         } else {
+            // incase the opponent left the room and is null but this user left early, resetting room
+            userData.matchRoom = null;
+            sessionManager.userMap.set(session.userId, userData);
+
             // broadcast or search for players
             socket.broadcast.emit('new-connection-request', socket.id); // Broadcast new connection to all players
         }
@@ -109,17 +157,7 @@ function handlePair(socket, to_id, connection_type, session){
     opponents.set(socket.id, to_id);
     opponents.set(to_id, socket.id);
     const userData = sessionManager.userMap.get(session.userId);
-    if(roomManager.matchRoom.has(userData.matchRoom) ){
-        // const room = roomManager.matchRoom.get(userData.matchRoom);
-        // if(room.player1 && room.player2){
-        //     console.log("!!!Room is full");
-        //     return;
-        // } else if(room.player1){
-        //     room.player2 = socket.id;
-        // } else {
-        //     room.player1 = socket.id;
-        // }
-    } else {
+    if( ! roomManager.matchRoom.has(userData.matchRoom) ) {
         const roomId = roomManager.createMatchRoom(socket.id, to_id);
         if (userData) {
             userData.matchRoom = roomId;
@@ -140,13 +178,16 @@ function handlePair(socket, to_id, connection_type, session){
 function handleDisconnect(socket, session){
     console.log('A user disconnected:', socket.id);
     const userData = sessionManager.userMap.get(session.userId);
-    console.log(userData)
-    if (userData) {
-        userData.socketId = null; // Modify the existing object
-        sessionManager.userMap.set(session.userId, userData); // Re-set the entry
+    if(userData === null){
+        console.log("user data is null");
+        return
     }
+
+    userData.socketId = null; // Modify the existing object
+    sessionManager.userMap.set(session.userId, userData); // Re-set the entry
     const roomData = roomManager.matchRoom.get(userData.matchRoom);
     if (roomData) {
+        // if the connected user was in a room, unpair them from the opponent
         let opponentId;
         if(roomData.player1 === socket.id){
             roomData.player1 = null;
@@ -155,9 +196,15 @@ function handleDisconnect(socket, session){
             roomData.player2 = null;
             opponentId = roomData.player1;
         }
-        roomManager.matchRoom.set(userData.matchRoom, roomData);
+        // now if the room is empty, delete it
+        if(roomData.player1 === null && roomData.player2 === null){
+            roomManager.matchRoom.delete(userData.matchRoom);
+        } else {
+            roomManager.matchRoom.set(userData.matchRoom, roomData);
+            opponents.set(opponentId, null);
+        }
+        
         opponents.delete(socket.id);
-        opponents.set(opponentId, null);
         console.log('Unpairing', socket.id, 'from', opponentId);
         socket.to(opponentId).emit('unpair', socket.id); // Send unpair request to specific player
     }
@@ -166,46 +213,28 @@ function handleDisconnect(socket, session){
 
 function handleLeave(){}
 
-io.on('connection', (socket) => {
-    const session = socket.handshake.session
-    console.log('A user connected:', socket.id, " with id: ", session.userId);
-
+function handleMove(socket, playerType, position, session){
+    // console.log(opponents)
+    const opponentId = opponents.get(socket.id);
+    console.log('Move from', socket.id, 'to', opponentId, ':', playerType, position);
     
-    const oldSocketId = sessionManager.userMap.get(session.userId)?.socketId;
-    if (oldSocketId && io.sockets.sockets.has(oldSocketId)) {
-        console.log(`Old socket ${oldSocketId} found. Disconnecting it.`);
-        io.sockets.sockets.get(oldSocketId).disconnect();
+    const room = roomManager.matchRoom.get(sessionManager.userMap.get(session.userId).matchRoom);
+    if(playerType === roomManager.states.X){
+        room.state.cellState[position.boardIdx][position.cellIdx] = roomManager.states.X;
+        room.state.player1.isNext = false;
+        room.state.player2.isNext = true;
+        room.state.player2.validBlocks = roomManager.getValidBlocks(room.state, position.cellIdx);
+    } else if (playerType === roomManager.states.O){
+        room.state.cellState[position.boardIdx][position.cellIdx] = roomManager.states.O;
+        room.state.player1.isNext = true;
+        room.state.player2.isNext = false;
+        room.state.player1.validBlocks = roomManager.getValidBlocks(room.state, position.cellIdx);
     }
-    
-    // initiate after the user sends the signal to the server
-    socket.on('new-connection-request-to-server', () => {
-        handleJoin(socket, session);
-    });
-
-    socket.on('pair', (to_id, connection_type) => {
-        handlePair(socket, to_id, connection_type, session);
-        if(connection_type === "initiate"){
-            console.log('recieved intiatte-pair request:', to_id);
-        } else if (connection_type === "sucess"){
-            console.log('recieved pair-sucessful signal:', to_id);
-        }
-        console.log("usermap: ", sessionManager.userMap)
-    });
-
-    socket.on('disconnect', () => {
-        handleDisconnect(socket, session);
-    });
-
-    socket.on('move', (player, position) => {
-        console.log(opponents)
-        const opponentId = opponents.get(socket.id);
-        console.log('Move from', socket.id, 'to', opponentId, ':', player, position);
-        if (opponentId) {
-            socket.to(opponentId).emit('move', player, position); // Send move to specific player
-        }
-    });
-
-    socket.on
-});
+    roomManager.checkBlockWin(room.state, position.boardIdx);
+    roomManager.matchRoom.set(sessionManager.userMap.get(session.userId).matchRoom, room);
+    if (opponentId) {
+        socket.to(opponentId).emit('move', playerType, position); // Send move to specific player
+    }
+}
 
 

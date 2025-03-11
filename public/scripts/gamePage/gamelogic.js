@@ -91,6 +91,13 @@ export function validateMove(boardIdx, cellIdx) {
     if (cellState[boardIdx][cellIdx] !== states.empty) {
         return false;
     }
+    if (!validBlocks.includes(String(boardIdx)) &&  ! validBlocks.includes(Number(boardIdx))) {
+        console.log("invalid move due to not being in valid blocks");
+        console.log("validBlocks: ", validBlocks);
+        console.log("boardIdx: ", boardIdx);
+        return false;
+    }
+    console.log("valid move");
     return true;
 }
 
@@ -125,67 +132,3 @@ export function checkBlockWin(boardIdx) {
     }
     return states.empty;
 }
-
-// export function saveState(){
-//     console.log("saving state");
-//     localStorage.setItem('isPaired', JSON.stringify(isPaired));
-//     localStorage.setItem('userState', JSON.stringify(userState));
-//     localStorage.setItem('cellState', JSON.stringify(cellState));
-//     localStorage.setItem('blockState', JSON.stringify(blockState));
-//     localStorage.setItem('validBlocks', JSON.stringify(validBlocks));
-//     localStorage.setItem('isXNext', JSON.stringify(isXNext));
-
-//     const savedIsPaired = localStorage.getItem('isPaired');
-//     const savedUserState = localStorage.getItem('userState');
-//     const savedCellState = localStorage.getItem('cellState');
-//     const savedBlockState = localStorage.getItem('blockState');
-//     const savedValidBlocks = localStorage.getItem('validBlocks');
-//     const savedIsXNext = localStorage.getItem('isXNext');
-
-//     console.log("savedIsPaired", savedIsPaired);
-//     console.log("savedUserState", savedUserState);
-//     console.log("savedCellState", savedCellState);
-//     console.log("savedBlockState", savedBlockState);
-//     console.log("savedValidBlocks", savedValidBlocks);
-//     console.log("savedIsXNext", savedIsXNext);
-// }
-
-// export function loadState(){
-//     console.log("loading state");
-//     const savedIsPaired = localStorage.getItem('isPaired');
-//     const savedUserState = localStorage.getItem('userState');
-//     const savedCellState = localStorage.getItem('cellState');
-//     const savedBlockState = localStorage.getItem('blockState');
-//     const savedValidBlocks = localStorage.getItem('validBlocks');
-//     const savedIsXNext = localStorage.getItem('isXNext');
-
-//     console.log("savedIsPaired", savedIsPaired);
-//     console.log("savedUserState", savedUserState);
-//     console.log("savedCellState", savedCellState);
-//     console.log("savedBlockState", savedBlockState);
-//     console.log("savedValidBlocks", savedValidBlocks);
-//     console.log("savedIsXNext", savedIsXNext);
-
-//     if(savedIsPaired !== null){
-//         isPaired = JSON.parse(savedIsPaired);
-//         if(!savedIsPaired)
-//             return;
-//     }
-
-//     if (savedUserState !== null) {
-//         userState = JSON.parse(savedUserState);
-//     }
-//     if (savedCellState !== null) {
-//         cellState = JSON.parse(savedCellState);
-//     }
-//     if (savedBlockState !== null) {
-//         blockState = JSON.parse(savedBlockState);
-//     }
-//     if (savedValidBlocks !== null) {
-//         validBlocks = JSON.parse(savedValidBlocks);
-//     }
-//     if (savedIsXNext !== null) {
-//         isXNext = JSON.parse(savedIsXNext);
-//     }
-
-// }

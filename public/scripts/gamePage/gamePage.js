@@ -48,8 +48,8 @@ async function socketConnect(){
     socket.on('unpair', (id) => {
         console.log('Unpaired from:', id);
         opponentId = null;
-        logicFunctions.setIsPaired(false);
-        logicFunctions.setPlayerState(null);
+        // logicFunctions.setIsPaired(false);
+        // logicFunctions.setPlayerState(null);
         socket.emit('new-connection-request');
     });
 }
@@ -64,6 +64,7 @@ async function onConnection(socket){
 async function onPair(socket, to_id, connection_type){
     console.log('Paired with:', to_id);
     await logicFunctions.loadState();
+    renderState();
     logicFunctions.setIsPaired(true);
     if (logicFunctions.getIsNext()){
         uiFunctions.contextSwitchIn();
@@ -151,6 +152,9 @@ function handleClick(cell) {
 
 
 function updateMoveToServer(cell) {
+    if(logicFunctions.getPlayerState() === null){
+        console.error('Player state is null');
+    }
     socket.emit(
         'move',
         logicFunctions.getPlayerState(),

@@ -20,19 +20,23 @@ const sessionMiddleware = session({
     cookie: { secure: false } // Set to true if using HTTPS
 });
 
+function createNewUser() {
+    console.log("creating new user: ", nextUserId);
+    return {
+        userId: nextUserId++,
+        socketId: null,
+        gameId: null,
+        playerType: null,
+        matchRoom: null,
+        lastActive: Date.now()
+    };
+}
+
 const userTrackingMiddleware = (req, res, next) => {
-    console.log("hii");
     if (!req.session.userId) {
-        console.log("creating new user: ", nextUserId);
-        req.session.userId = nextUserId++;
-        userMap.set(req.session.userId, {
-            userId: req.session.userId,
-            socketId: null,
-            gameId: null,
-            playerType: null,
-            matchRoom: null,
-            lastActive: Date.now()
-        });
+        const newuser = createNewUser();
+        req.session.userId = newuser.userId;
+        userMap.set(req.session.userId, newuser);
     } else {
         // Update last active timestamp for existing users
         if (userMap.has(req.session.userId)) {
@@ -98,6 +102,7 @@ const cleanupInterval = setInterval(cleanupInactiveUsers, CLEANUP_INTERVAL * 100
 module.exports = {
     sessionMiddleware,
     userTrackingMiddleware,
+    createNewUser,
     userMap,
     store  // Export the store if needed elsewhere
 };
